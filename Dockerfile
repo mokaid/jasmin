@@ -1,8 +1,5 @@
-# Use an official Python runtime as a parent image
+# Use the official Python 3.11 slim image from the Docker Hub
 FROM python:3.11-slim
-
-# Set environment variables to avoid Python buffering issues
-ENV PYTHONUNBUFFERED 1
 
 # Install necessary packages
 RUN apt-get update && \
@@ -10,23 +7,22 @@ RUN apt-get update && \
     curl \
     libffi-dev \
     libssl-dev \
-    python-dev \
-    python-pip \
+    python3-dev \
+    python3-pip \
     redis-server \
     rabbitmq-server
 
-# Install Jasmin SMS Gateway
-RUN curl -s https://setup.jasminsms.com/deb | bash && \
-    apt-get install -y jasmin-sms-gateway
+# Install Jasmin SMS Gateway using pip
+RUN pip3 install jasmin
 
-# Expose necessary ports
+# Copy the configuration files to the container
+COPY ./config /etc/jasmin
+
+# Expose the necessary ports for SMPP, HTTP, and Jasmin CLI
 EXPOSE 2775 8990 1401
 
-# Create a directory for Jasmin
-RUN mkdir -p /etc/jasmin
-
-# Set up the entry point
-ENTRYPOINT ["jasmind.py"]
-
-# Start Jasmin service
-CMD ["-l", "/var/log/jasmin/jasmin.log"]
+# Start the necessary services
+CMD service redis-server start && \
+    service rabbitmq-server start && \
+    jasmind start && \
+    tail -f /var/log/jasmin/*.log
